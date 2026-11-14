@@ -1,0 +1,60 @@
+# Parameters for the reliability/relevance/recall equations in CLAUDE.md Section 6.
+# alpha, lambda_base, theta_direct are explicitly called "tunable" in the spec with
+# no default given — values below are placeholders chosen with a stated rationale,
+# NOT calibrated against real episode data yet. Revisit once Phase 4 has real
+# episodes to tune against (see PROGRESS.md Phase 3 decisions log).
+
+reliability:
+  # diminishing-returns rate on repeated observations: 1-exp(-alpha*n_i).
+  # alpha=0.5 -> ~1 obs is ~39% of max, ~3 obs is ~78%, ~5 obs is ~92% -- a few
+  # confirmations matter a lot, tapering off after that. No basis for this beyond
+  # "reasonable shape"; genuinely a guess.
+  alpha: 0.5
+  # per-second decay rate at mobility=1.0 (fully mobile category). Chosen so a
+  # fully-mobile object's reliability half-life (~700s / ~12 min) is comparable to
+  # a single episode's rough duration, while mobility=0 (static) objects get
+  # lambda_i=0 -> no decay at all within any episode length. Also a guess pending
+  # real episode-length calibration.
+  lambda_base: 0.001
+  # initial v_i for a brand-new memory entity with no verification history yet.
+  initial_v: 1.0
+  # v_i multiplier applied on a failed verification (discount, never delete).
+  verification_failure_discount: 0.5
+
+recall:
+  # threshold on relevance * reliability for the direct-recall criterion
+  # R_i(q) = s(q,d_i) * C_i >= theta_direct. CLIP-family cosine similarities have a
+  # well-known non-zero baseline (unrelated concepts often score 0.1-0.3), so this
+  # is a rough starting point, not a calibrated value -- flagged for Phase 4 tuning
+  # once there's real query/entity data to threshold against.
+  theta_direct: 0.2
+
+embedding:
+  # must match daaam_docker's bridge_pipeline_config.yaml selectframe_clip_* config
+  # so query text embeddings land in the same space as DAAAM's stored object
+  # embeddings (openai-pretrained open_clip ViT-L-14, per dam_grounding.py).
+  clip_model_name: "ViT-L-14"
+  clip_model_dataset: "openai"
+  clip_backend: "openclip"
+
+contextual_anchor:
+  # PLACEHOLDER per CLAUDE.md Section 6: "Anchor weight and fusion formula are not
+  # yet fully specified in the source paper... implement a clearly-labeled
+  # placeholder... but do not treat as final." This is that placeholder: a flat
+  # linear weight applied to each remembered anchor's C_i when fused into the value
+  # map alongside live detections. NOT a real answer to the open research question.
+  anchor_weight: 1.0
+  # Gaussian falloff radius (metres) for both live and remembered signals in the
+  # value map. Was hardcoded at the class default (2.0) and never exposed here --
+  # a real, load-bearing bug: frontier candidates get sampled up to 8m from the
+  # agent (frontier.py's max_radius), but at sigma=2.0 a signal 6m from a candidate
+  # contributes exp(-(6^2)/(2*2^2)) ~= 0.011 -- numerically invisible. This is why
+  # the memory-influence probe (PROGRESS.md Phase 4) measured 0/6 influenced
+  # decisions in both episodes of the pre-fix batch run despite 100% position+
+  # embedding coverage: remembered signals were structurally too tightly bounded to
+  # ever compete for a candidate the agent hadn't already all-but reached. Raised to
+  # 6.0 so a remembered anchor can plausibly steer candidate selection across a
+  # typical room's extent (2*sigma=12m), not just once the agent is already on top
+  # of it. Still a placeholder value -- reasoned from the candidate-sampling radius,
+  # not empirically swept.
+  value_map_sigma: 6.0

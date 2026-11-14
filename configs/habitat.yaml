@@ -1,0 +1,30 @@
+# Habitat-Sim scene/agent/sensor configuration.
+# scene_path: real HM3D data (the ungated "example" tier from
+# github.com/matterport/habitat-matterport-3dresearch — no Matterport credential
+# needed for this subset; the full train/val/minival tiers are still gated and TBD).
+# Fallback for reference: "data/scene_datasets/habitat-test-scenes/skokloster-castle.glb"
+# 2026-08-24: switched from 00861-GLAQ4DNUx5U (125.91 m^2, 5 navmesh islands) to
+# 00770-NBg5UqG3di3 (299.43 m^2, 2 navmesh islands, verified multi-room via topdown
+# navmesh render) so episodes can require genuine room-to-room traversal rather than
+# single-room reactive search -- see PROGRESS.md.
+scene_path: "data/hm3d/example/00770-NBg5UqG3di3/NBg5UqG3di3.basis.glb"
+
+sensor:
+  rgb_resolution: [480, 640]
+  depth_resolution: [480, 640]
+  height: 1.5  # sensor height above agent base, metres
+  hfov: 90
+
+agent:
+  radius: 0.1
+  height: 1.5
+
+action_space:
+  move_forward:
+    amount: 0.25  # metres
+  turn_left:
+    amount: 10.0  # degrees
+  turn_right:
+    amount: 10.0  # degrees
+
+gpu_device_id: 0

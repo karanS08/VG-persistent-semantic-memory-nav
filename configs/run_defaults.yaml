@@ -1,0 +1,51 @@
+# Episode-level run defaults, shared across orchestrator scripts. Overridable via
+# CLI flags where scripts expose them (e.g. `--max-steps`).
+episode:
+  max_steps: 200  # also used as the stopping-condition time_budget (1 unit/step, see run_phase4_batch.py's scoping note)
+  post_loop_grounding_wait_s: 30  # how long to let in-flight DAAAM grounding finish before episode/stop
+  n_frontier_candidates: 12
+  # Safety-net: force a re-plan at least this often regardless of whether fresh
+  # evidence arrived, so the agent can't go indefinitely without rechecking
+  # memory. Added 2026-08-23 alongside the "new usable memory" replan trigger --
+  # see FrontierAgent.__init__'s comment and PROGRESS.md Phase 4 for why the
+  # original "live_entity_ids non-empty" trigger alone left contextual-anchor
+  # evaluations seeing 0 usable entities 100% of the time.
+  periodic_replan_interval: 10
+  coverage_threshold: 0.95
+  verify_relevance_threshold: 0.18
+  verify_distance: 1.5
+  # 2026-09-28: lexical gate (gate 4) matching rule. "prefix" = legacy rule
+  # (query head noun vs. ANY caption word, prefix match) used for every result
+  # before this date; "caption_head" = query head vs. the caption's SUBJECT
+  # noun only (verification.py _caption_head_consistent). Overridable with
+  # run_phase4_batch.py --lexical-mode.
+  lexical_mode: prefix  # 2026-09-28: kept at the paper's rule; caption_head is opt-in via --lexical-mode
+
+# CLAUDE.md Section 9 Step 4.5's three planned ablations. run_phase4_batch.py
+# reads these as the DEFAULT for each run -- edit this file directly to set up a
+# combination (e.g. memory_enabled: false AND mobility_scaling_enabled: false at
+# once) without needing to remember/pass CLI flags. The matching CLI flags
+# (--memory-off, --no-mobility-scaling, --no-verification-discount) still work
+# and take priority when passed -- they can only turn a flag OFF, not force one
+# back ON over a `false` set here, so scripting many combinations from one
+# baseline config is still just a matter of passing flags per run.
+ablations:
+  memory_enabled: true              # false = CLAUDE.md's "memory-off (live-only, fallback always)"
+  mobility_scaling_enabled: true    # false = flat lambda_i=lambda_base for every entity
+  verification_discount_enabled: true  # false = v_i fixed at 1.0, never discounted on failed verification
+
+# 2026-08-25: by default (false), run_phase4_batch.py's QUERIES loop treats each
+# query as an independent episode -- fresh MemoryStore, fresh DAAAM orchestrator
+# session (client.start_episode()/stop_episode() called per query), agent reset to
+# the scene's spawn pose. Confirmed via code read that NEITHER our MemoryStore NOR
+# DAAAM's own PipelineOrchestrator (bridge_server.py's /episode/start replaces it
+# entirely) carries anything across that boundary, even though the underlying HM3D
+# scene is identical across all 8 queries -- see PROGRESS.md 2026-08-25.
+# Set true to instead run the whole QUERIES loop as ONE continuous session in the
+# same scene: one MemoryStore, one DAAAM orchestrator session (start/stop called
+# once for the whole run, not per query), and the agent's physical position carries
+# over -- a new query resumes exploration from wherever the agent already is,
+# reusing everything already remembered about the scene. Per-query bookkeeping
+# (steps taken, path length, coverage, branch counts, verification outcome) still
+# resets each query -- only the memory and the agent's position persist.
+persistent_across_queries: false

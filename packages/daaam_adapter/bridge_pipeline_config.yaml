@@ -1,0 +1,100 @@
+# Config for the rpv_mem daaam_bridge_server, run inside daaam_dev.
+# Based on ~/ros2_ws/src/daaam/config/pipeline_config.yaml (the repo default), with
+# overrides verified necessary against this specific container (checked what's
+# actually on disk rather than assuming):
+#   - segmentation.model_name: only checkpoints/fastsam/FastSAM-s.pt exists (a .pt
+#     file, not the default's TensorRT FastSAM-x-640x480.engine) — matches the
+#     workaround RUNNING.md itself documents ("first real run needs
+#     sam_model:=fastsam/FastSAM-s.pt").
+#   - tracking.with_reid: false — no checkpoints/reid_weights/*.engine exists.
+#   - grounding.query_interval_frames / workers.assignment_config.min_obs_per_track:
+#     lowered from the repo defaults (90 / 8) purely so a short smoke-test episode
+#     (dozens of frames, not thousands) can actually trigger the async grounding
+#     path — NOT meant as tuned values for a real episode, revisit before Phase 3/4.
+#   - grounding.agent_model_name / DAM grounding worker: verified via source
+#     (grounding/workers/dam_grounding.py) that the currently-selected
+#     "dam_multi_image" worker only loads the local cached nvidia/DAM-3B model and
+#     open_clip weights — no ANTHROPIC_API_KEY/OPENAI_API_KEY needed despite both
+#     being present-but-empty in the container's env (checked before assuming this
+#     was a credential blocker).
+
+segmentation:
+  model_name: "fastsam/FastSAM-s.pt"
+  model_config_path: "fastsam/fastsam_config.yaml"
+  device: "cuda"
+  min_mask_region_area: 300
+  polygon_epsilon_factor: 0.001
+  imgsz: [480, 640]
+
+tracking:
+  device: "cuda"
+  track_buffer: 30
+  enable_temporal_history: true
+  with_reid: false
+
+grounding:
+  agent_model_name: "gpt-5-mini"
+  group_prompt_file: "config/prompt_templates/grounded_sam_prompt.txt"
+  # lowered further from 20 -> 15 for Phase 4 batch tuning: the closed-loop agent's
+  # batch run (see PROGRESS.md Phase 4 Step 4.4) got 0 real corrections in 60 steps
+  # even with 20; still a guess pending the diagnostic run this change is part of,
+  # not a calibrated value.
+  # further lowered from 15 -> 8 (2026-08-23): confirmed by the user's own
+  # independent DAAAM testing (a 42-step run produced zero grounding results)
+  # and by this project's growth-curve logging (usable entity count stays at
+  # 0 for ~90 steps then jumps in one burst) that grounding takes far longer
+  # than the previous value to produce ANY result. Real suspected cause (not
+  # yet confirmed): a single grounding worker processing DAM-3B queries
+  # serially at ~7s each falls behind a growing backlog when each 15-frame
+  # trigger selects multiple groups at once -- more frequent, smaller
+  # triggers may drain more evenly instead of queueing in bursts.
+  query_interval_frames: 8
+  cuda_device: null
+  enable_perframe_clip_features: false
+  clip_feature_interval_frames: 5
+  perframe_clip_model_name: "ViT-B-16"
+  perframe_clip_model_dataset: "openai"
+
+workers:
+  num_assignment_workers: 1
+  num_grounding_workers: 1
+  assignment_worker: "min_frames_max_size"
+  grounding_worker: "dam_multi_image"
+  assignment_config:
+    min_obs_per_track: 1  # further lowered from 2 -> 1, same 2026-08-23 tuning pass
+    N_masks_per_batch: 64
+    min_frame_margin_slack: 1
+    min_mask_region_area: 300
+    max_mask_region_area: 307200
+    position_score_weight: 0.5
+    size_score_weight: 0.5
+  dam_grounding_config:
+    dam_model_path: "nvidia/DAM-3B"
+    dam_conv_mode: "v1"
+    dam_prompt_mode: "focal_prompt"
+    multi_image_min_n_masks: 32
+    sentence_embedding_model_name: ""
+    compute_full_image_description: false
+    save_grounding_images: false
+    save_plain_grounding_images: false
+    save_object_images: false
+    enable_selectframe_clip_features: true
+    selectframe_clip_model_name: "ViT-L-14"
+    selectframe_clip_model_dataset: "openai"
+    selectframe_clip_backend: "openclip"
+
+depth:
+  # widened from the repo default (0.25-5.0) as a precaution since Habitat-Sim's
+  # synthetic depth scale for this scene hasn't been cross-checked against what
+  # DAAAM's depth-validity filter expects — narrow back to defaults once confirmed.
+  depth_lb: 0.1
+  depth_ub: 10.0
+
+scene_graph:
+  defer_dsg_processing: true
+  enable_background_objects: true
+
+semantic_config_path: "config/labels_pseudo.yaml"
+labelspace_colors_path: "config/labels_pseudo.csv"
+hierarchical_optimization: true
+output_dir: "output/rpv_mem_bridge"

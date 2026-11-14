@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=64.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "frontier_agent"
+version = "0.1.0"
+requires-python = ">=3.9"
+dependencies = ["numpy", "memory_layer"]
+
+[tool.setuptools.packages.find]
+include = ["frontier_agent*"]

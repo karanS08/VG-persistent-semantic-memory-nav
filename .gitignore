@@ -1,0 +1,21 @@
+# Generated/downloaded data -- large, reproducible, not source
+data/
+.deps/
+artifact_assets/
+logs/*
+# ...except the hand-maintained failure-triage doc CLAUDE.md SS10 requires
+# (a curated doc, not raw per-run stdout/stderr -- worth tracking in git).
+# Must exclude by directory *contents* (logs/*), not the directory itself
+# (logs/), or git won't descend far enough to see this re-include rule.
+!logs/failures.md
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+*.egg
+
+# Editors / OS
+.DS_Store
+*.swp

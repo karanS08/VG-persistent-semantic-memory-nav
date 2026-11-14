@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=64.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orchestrator"
+version = "0.1.0"
+requires-python = ">=3.9"
+dependencies = ["sim_bridge", "daaam_adapter", "memory_layer", "frontier_agent", "pyyaml"]
+
+[tool.setuptools.packages.find]
+include = ["orchestrator*"]
