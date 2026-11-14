@@ -78,8 +78,8 @@ packages/
   memory_layer/      reliability, relevance, recall, memory store and update
   frontier_agent/    value map, frontier candidates, standoff poses, verification, actions
   orchestrator/      episode runners and batch experiments
-configs/             habitat.yaml, memory.yaml, mobility_priors.json, run_defaults.yaml, ProcTHOR batches
-scripts/             experiment launchers, scoring/audit tools, figure generation
+configs/             habitat.yaml, memory.yaml, mobility_priors.json, run_defaults.yaml, house-tour waypoints
+scripts/             run_phase1.sh; thor/ runs the same pipeline in AI2-THOR / ProcTHOR houses
 docs/                demo recording, real-time notes, Spot deployment plan
 logs/failures.md     failure-triage log
 ```
@@ -129,6 +129,9 @@ python -m orchestrator.run_phase4_batch --memory-off
 python -m orchestrator.run_phase4_batch --no-mobility-scaling
 python -m orchestrator.run_phase4_batch --no-verification-discount
 python -m orchestrator.run_phase4_batch --no-fresh-evidence-guard
+
+# Same pipeline in a ProcTHOR house (needs ai2thor and prior installed)
+THOR_HOUSE=1 THOR_GT_DIR=data/runs/thor_demo python scripts/thor/run_thor_batch.py --max-steps 200
 ```
 
 Every run writes its resolved config, per-step JSONL logs and a Rerun recording
